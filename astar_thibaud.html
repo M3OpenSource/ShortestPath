@@ -1,0 +1,220 @@
+<!-- http://will.thimbleby.net/a-shortest-path-in-javascript/ -->
+<html>
+<script language="JavaScript" type="text/JavaScript" src="astar_thibaud.js"></script>
+<script language="JavaScript" type="text/JavaScript" src="warehouse1.js"></script>
+<script language="JavaScript" type="text/JavaScript" src="warehouse2.js"></script>
+<script>
+
+var cellSize = 10;
+var canvasWidth;
+var canvasHeight;
+
+var map, canvas, ctx, allowDiagonals, nodesSearched;
+
+var mDown = false;
+var dragMode;
+var start = {x:2,y:2};
+var end = {x:18,y:10};
+
+var startMap;
+
+function findPosX(obj)
+{
+  var curleft = 0;
+  if(obj.offsetParent)
+      while(1) 
+      {
+        curleft += obj.offsetLeft;
+        if(!obj.offsetParent)
+          break;
+        obj = obj.offsetParent;
+      }
+  else if(obj.x)
+      curleft += obj.x;
+  return curleft;
+}
+
+function findPosY(obj)
+{
+  var curtop = 0;
+  if(obj.offsetParent)
+      while(1)
+      {
+        curtop += obj.offsetTop;
+        if(!obj.offsetParent)
+          break;
+        obj = obj.offsetParent;
+      }
+  else if(obj.y)
+      curtop += obj.y;
+  return curtop;
+}
+
+function mouseDown(event) {
+	var pos = {x:Math.floor((event.clientX-findPosX(canvas))/cellSize), y:Math.floor((event.clientY-findPosY(canvas))/cellSize)};
+	
+	mDown = true;
+	dragMode = 0;
+	if(pos.x==start.x && pos.y==start.y)
+		dragMode = 2;
+	else if(pos.x==end.x && pos.y==end.y)
+		dragMode = 3;
+	else if(map[pos.x][pos.y].solid)
+		dragMode = 1;
+	mouseMoved(event);
+}
+function mouseMoved(event) {
+	if(mDown) {
+		var pos = {x:Math.floor((event.clientX-findPosX(canvas))/cellSize), y:Math.floor((event.clientY-findPosY(canvas))/cellSize)};
+		
+		switch(dragMode) {
+			case 0:
+				map[pos.x][pos.y].solid = true;
+				break;
+			case 1:
+				map[pos.x][pos.y].solid = false;
+				break;
+			case 2:
+				start.x = pos.x;
+				start.y = pos.y;
+				break;
+			case 3:
+				end.x = pos.x;
+				end.y = pos.y;
+				break;
+		}
+
+		draw();
+	}
+}
+function mouseUp(e) {
+	mDown = false;
+}
+
+function clearMap() {
+	for(var i=0;i<map.length;i++) {
+		for(var j=0;j<map[i].length;j++) {
+			map[i][j].solid = false;
+		}
+	}
+	draw();
+}
+
+function randomMap() {
+	for(var i=0;i<map.length;i++) {
+		for(var j=0;j<map[i].length;j++) {
+			map[i][j].solid = Math.random() > 0.8;
+		}
+	}
+	draw();
+}
+
+function init() {
+	map = new Array;
+	for(var i=0;i<startMap.length;i++) {
+		map[i] = new Array;
+		for(var j=0;j<startMap[i].length;j++) {
+			map[i][j] = new Node(i, j, startMap[i][j]);
+		}
+	}
+	
+	//canvas = document.getElementById("canvas");
+	canvas.width = canvasWidth = map.length * cellSize;
+	canvas.height = canvasHeight = map[0].length * cellSize;
+	ctx = canvas.getContext("2d");
+	canvas.onmousedown = mouseDown;
+	canvas.onmousemove = mouseMoved;
+	canvas.onmouseup = mouseUp;
+
+	draw();
+}
+
+function draw() {
+	nodesSearched = 0;
+	allowDiagonals = document.getElementById("diagonals").checked;
+	diagonalCost = document.getElementById("diagonalcost").checked? 1.01 : 1.0;
+	dotTiebreaker = document.getElementById("dotTiebreaker").checked;
+	badSorting = !(document.getElementById("badSorting").checked);
+	
+	ctx.fillStyle = '#EEE';
+	ctx.strokeStyle = '#888';
+	ctx.clearRect(0,0,canvasWidth,canvasHeight);
+	
+	var r = pathFind(start.x, start.y, end.x, end.y);
+	
+	ctx.strokeRect(0.5, 0.5, canvasWidth, canvasHeight);
+	ctx.fillStyle = '#333';
+	for(i=0;i<map.length;i++) {
+		for(j=0;j<map[i].length;j++) {
+			if(map[i][j].solid) {
+				// map
+				//ctx.fillRect(i*cellSize, j*cellSize, cellSize, cellSize);
+			}
+			else {
+				// gridlines
+				//ctx.strokeRect(i*cellSize-0.5, j*cellSize-0.5, cellSize, cellSize);
+			}
+		}
+	}
+	
+	
+	ctx.fillStyle = '#F77';
+	ctx.fillRect(start.x*cellSize, start.y*cellSize, cellSize, cellSize);
+	ctx.fillStyle = '#77F';
+	ctx.fillRect(end.x*cellSize, end.y*cellSize, cellSize, cellSize);
+	
+	ctx.strokeStyle = '#F00';
+	ctx.lineWidth = 5;
+	ctx.beginPath();
+	for(i=0;i<r.length;i++) {
+		if(i==0) ctx.moveTo(r[i].x*cellSize+cellSize/2+0.5, r[i].y*cellSize+cellSize/2+0.5);
+		else ctx.lineTo(r[i].x*cellSize+cellSize/2+0.5, r[i].y*cellSize+cellSize/2+0.5);
+	}
+	ctx.stroke();
+	ctx.lineWidth = 1;
+	
+	document.getElementById("pathlength").innerHTML = r.length;
+	document.getElementById("nodes").innerHTML = nodesSearched;
+}
+
+function warehouse1() {
+	start = {x:2,y:2};
+	end = {x:18,y:10};
+	startMap = mapWarehouse1;
+	canvas1 = document.getElementById("canvas1");
+	canvas2 = document.getElementById("canvas2");
+	canvas1.style.display = "";
+	canvas2.style.display = "none";
+	canvas = canvas1;
+}
+
+function warehouse2() {
+	start = {x:2,y:2};
+	end = {x:18,y:10};
+	startMap = mapWarehouse2;
+	canvas1 = document.getElementById("canvas1");
+	canvas2 = document.getElementById("canvas2");
+	canvas1.style.display = "none";
+	canvas2.style.display = "";
+	canvas = canvas2;
+}
+
+</script>
+<body onload="warehouse1();init()" style="font-family:'Lucida Grande', Verdana, Arial, Sans-Serif;font-size:12px">
+<canvas id="canvas1" style="float:left;margin-right:10px; background-image: url('warehouse1.png'); display:none"></canvas>
+<canvas id="canvas2" style="float:left;margin-right:10px; background-image: url('warehouse2.png'); display:none"></canvas>
+<div>
+	<input type="button" onclick="warehouse1();init()" value="Warehouse1">
+	<input type="button" onclick="warehouse2();init()" value="Warehouse2">
+	<br/>
+	<input id="diagonals" type="checkbox" onclick="draw()" checked="true">Allow diagonals<br>
+	<input id="diagonalcost" type="checkbox" onclick="draw()" checked="true">Tweak diagonal cost<br>
+	<input id="badSorting" type="checkbox" onclick="draw()" checked="yes">Prefer new nodes<br>
+	<input id="dotTiebreaker" type="checkbox" onclick="draw()">Dot product tie breaker<br><br>
+	<input type="button" onclick="clearMap()" value="Clear"><input type="button" onclick="randomMap()" value="Random"><br><br>
+	<table style="font-family:'Lucida Grande', Verdana, Arial, Sans-Serif;font-size:12px"><tr><td>
+	Path length:</td><td><span id="pathlength" style="font-size:4em"></span></td></tr>
+	<tr><td>Nodes searched:</td><td><span id="nodes"></span></td></tr></table>
+</div>
+</body>
+</html>
